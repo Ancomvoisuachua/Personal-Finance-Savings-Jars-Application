@@ -16,13 +16,14 @@ const vnd = (n) => (n || 0).toLocaleString('vi-VN') + ' đ'
 const colorMap = { ok: 'bg-sage', warning: 'bg-amber', exceeded: 'bg-alert' }
 
 const Bar = ({ pct, cls }) => (
-  <div className="h-2.5 rounded-full bg-mist overflow-hidden">
+  <div className="h-2.5 rounded-full bg-mist dark:bg-gray-800 overflow-hidden">
     <div className={`h-full transition-all duration-300 ${cls}`} style={{ width: `${Math.min(pct, 100)}%` }} />
   </div>
 )
 
+// Cập nhật Card tự động đổi màu theo chế độ tối
 const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 ${className}`}>
+  <div className={`bg-white dark:bg-gray-900 text-ink rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 transition-colors ${className}`}>
     {children}
   </div>
 )
@@ -41,7 +42,7 @@ function CategorySpendingChart({ data }) {
             <span className="font-medium flex items-center gap-1.5">
               <span>{item.icon}</span> {item.name}
             </span>
-            <span className="font-semibold text-gray-700">{vnd(item.amount)} ({item.percentage}%)</span>
+            <span className="font-semibold text-gray-600 dark:text-gray-300">{vnd(item.amount)} ({item.percentage}%)</span>
           </div>
           <Bar pct={item.percentage} cls={colors[idx % colors.length]} />
         </div>
@@ -64,7 +65,7 @@ function BudgetList({ items, filterPeriod = 'all' }) {
               <span className="text-xl">{b.category?.icon}</span> {b.category?.name}
             </span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-              b.period_type === 'daily' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
+              b.period_type === 'daily' ? 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400' : 'bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400'
             }`}>
               {b.period_type === 'daily' ? 'Hàng ngày' : 'Hàng tháng'}
             </span>
@@ -75,7 +76,7 @@ function BudgetList({ items, filterPeriod = 'all' }) {
           </div>
           <Bar pct={b.percent_used} cls={colorMap[b.warning_level]} />
           <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-gray-600">{b.percent_used}% hạn mức</span>
+            <span className="font-bold text-gray-600 dark:text-gray-400">{b.percent_used}% hạn mức</span>
             {b.is_exceeded && (
               <span className="text-alert font-bold">Vượt {vnd(b.spent - b.limit_amount)}</span>
             )}
@@ -115,11 +116,11 @@ function JarCard({ j }) {
           )}
         </div>
       </div>
-      <div className="flex gap-2 pt-2 border-t border-gray-50">
+      <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-gray-800">
         <button onClick={() => ask(1)} className="flex-1 py-1.5 rounded-xl bg-sage hover:bg-sage/90 text-white font-medium text-xs transition-all">
           + Nạp tiền
         </button>
-        <button onClick={() => ask(-1)} className="flex-1 py-1.5 rounded-xl bg-mist hover:bg-gray-200 text-ink font-medium text-xs transition-all">
+        <button onClick={() => ask(-1)} className="flex-1 py-1.5 rounded-xl bg-mist dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-ink font-medium text-xs transition-all">
           - Rút tiền
         </button>
       </div>
@@ -197,15 +198,15 @@ export function Transactions() {
   if (!txs.length) return <Card className="text-center py-8 text-gray-400">Chưa có giao dịch nào được ghi chép.</Card>
 
   return (
-    <Card className="p-2 divide-y divide-gray-100">
+    <Card className="p-2 divide-y divide-gray-100 dark:divide-gray-800">
       {txs.map((t) => {
         const c = cats.find((x) => x.id === t.category_id)
         const isIncome = t.type === 'income'
 
         return (
-          <div key={t.id} className="flex items-center justify-between p-3 hover:bg-mist/50 rounded-xl transition-all">
+          <div key={t.id} className="flex items-center justify-between p-3 hover:bg-mist/50 dark:hover:bg-gray-800/50 rounded-xl transition-all">
             <div className="flex items-center gap-3">
-              <span className="text-2xl p-2 bg-mist rounded-xl">{c?.icon || '💵'}</span>
+              <span className="text-2xl p-2 bg-mist dark:bg-gray-800 rounded-xl">{c?.icon || '💵'}</span>
               <div>
                 <div className="font-bold text-sm text-ink">{t.note || c?.name}</div>
                 <div className="text-xs text-gray-400">{t.date} · {c?.name}</div>
@@ -260,7 +261,7 @@ export function Budgets() {
           <select
             value={f.category_id}
             onChange={(e) => setF({ ...f, category_id: Number(e.target.value) })}
-            className="border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+            className="border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
           >
             <option value="">-- Chọn danh mục --</option>
             {expenseCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
@@ -269,7 +270,7 @@ export function Budgets() {
           <select
             value={f.period_type}
             onChange={(e) => setF({ ...f, period_type: e.target.value })}
-            className="border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+            className="border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
           >
             <option value="daily">Theo ngày</option>
             <option value="monthly">Theo tháng</option>
@@ -280,7 +281,7 @@ export function Budgets() {
             inputMode="numeric"
             value={f.limit_amount ? Number(f.limit_amount).toLocaleString('vi-VN') : ''}
             onChange={(e) => setF({ ...f, limit_amount: e.target.value.replace(/\D/g, '') })}
-            className="border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+            className="border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
           />
 
           <button
@@ -301,7 +302,7 @@ export function Budgets() {
               key={v}
               onClick={() => setTab(v)}
               className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-                tab === v ? 'bg-ink text-white' : 'bg-white text-gray-500 hover:bg-mist'
+                tab === v ? 'bg-ink text-white' : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-mist dark:hover:bg-gray-800'
               }`}
             >
               {l}
@@ -340,14 +341,14 @@ export function Jars() {
             placeholder="Tên hũ (Ví dụ: Mua Laptop, Đi du lịch...)"
             value={f.name}
             onChange={(e) => setF({ ...f, name: e.target.value })}
-            className="border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+            className="border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
           />
           <input
             placeholder="Mục tiêu tích lũy (VNĐ)"
             inputMode="numeric"
             value={f.target_amount ? Number(f.target_amount).toLocaleString('vi-VN') : ''}
             onChange={(e) => setF({ ...f, target_amount: e.target.value.replace(/\D/g, '') })}
-            className="border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+            className="border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -359,7 +360,7 @@ export function Jars() {
               max="100"
               value={f.allocation_percentage}
               onChange={(e) => setF({ ...f, allocation_percentage: Number(e.target.value) })}
-              className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
             />
           </div>
           <div>
@@ -368,7 +369,7 @@ export function Jars() {
               type="date"
               value={f.deadline}
               onChange={(e) => setF({ ...f, deadline: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-white"
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
             />
           </div>
           <div className="flex items-end">

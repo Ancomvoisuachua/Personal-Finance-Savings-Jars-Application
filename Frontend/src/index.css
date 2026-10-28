@@ -1,3 +1,21 @@
 @import "tailwindcss";
-@theme { --font-sans:"Be Vietnam Pro",system-ui,sans-serif; --color-ink:#1f2a44; --color-sage:#4f8a74; --color-amber:#d99a1e; --color-alert:#c8443b; --color-mist:#f3f5f7; }
-body{background:var(--color-mist);color:var(--color-ink)}
+@theme { 
+  --font-sans:"Be Vietnam Pro",system-ui,sans-serif; 
+  --color-ink:#1f2a44; 
+  --color-sage:#4f8a74; 
+  --color-amber:#d99a1e; 
+  --color-alert:#c8443b; 
+  --color-mist:#f3f5f7; 
+}
+
+/* Biến màu sắc khi bật Dark Mode */
+.dark {
+  --color-ink: #f3f5f7;
+  --color-mist: #111827;
+}
+
+body {
+  background: var(--color-mist);
+  color: var(--color-ink);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
