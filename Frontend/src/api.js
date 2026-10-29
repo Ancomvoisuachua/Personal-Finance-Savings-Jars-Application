@@ -1,6 +1,6 @@
 // api.js
 const STORAGE_KEY = 'fintrack_local_db_v1'
-
+const DB_KEY = 'PERSONAL_FINANCE_DB_V1'
 const todayStr = () => new Date().toISOString().slice(0, 10)
 const currentMonthStr = () => new Date().toISOString().slice(0, 7) // "YYYY-MM"
 
@@ -34,9 +34,13 @@ const defaultDb = {
 
 // Lấy dữ liệu từ LocalStorage
 const loadDb = () => {
+  const raw = localStorage.getItem(DB_KEY)
+  if (!raw) {
+    localStorage.setItem(DB_KEY, JSON.stringify(defaultDb))
+    return defaultDb
+  }
   try {
-    const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : defaultDb
+    return JSON.parse(raw)
   } catch (e) {
     return defaultDb
   }
@@ -44,11 +48,7 @@ const loadDb = () => {
 
 // Lưu dữ liệu vào LocalStorage
 const saveDb = (db) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
-  } catch (e) {
-    console.error('Không thể lưu vào localStorage', e)
-  }
+  localStorage.setItem(DB_KEY, JSON.stringify(db))
 }
 
 const wait = (v) => new Promise((r) => setTimeout(() => r(structuredClone(v)), 80))
@@ -90,60 +90,113 @@ export const deleteTransaction = (id) => {
 
 export const getDashboard = () => {
   const db = loadDb()
-  const today = todayStr()
-  const currentMonth = currentMonthStr()
+  const todayStr = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD'
+  const expenseTxs = db.transactions.filter(t => t.type === 'expense')
 
-  // 1. Tính toán ngân sách
-  const budgetItems = db.budgets.map((b) => {
-    const isDaily = b.period_type === 'daily'
-    const categorySpent = db.transactions
-      .filter((t) => {
-        if (t.type !== 'expense' || t.category_id !== b.category_id) return false
-        return isDaily ? t.date === today : t.date.startsWith(currentMonth)
-      })
-      .reduce((s, t) => s + t.amount, 0)
+  // 1. Phân tích hôm nay
+  const todayMap = {}
+  let totalToday = 0
 
-    const percent_used = Math.round((categorySpent / b.limit_amount) * 100)
-    return {
-      ...b,
-      category: db.categories.find((c) => c.id === b.category_id),
-      spent: categorySpent,
-      percent_used,
-      is_exceeded: categorySpent > b.limit_amount,
-      warning_level: categorySpent > b.limit_amount ? 'exceeded' : percent_used >= 80 ? 'warning' : 'ok'
+  // 2. Gom nhóm theo Năm -> Tháng (Đảm bảo cấu trúc rõ ràng theo năm)
+  // Cấu trúc: { '2026': { '01': {total: 0, categories: {}}, '02': {...}, ... } }
+  const yearsMap = {}
+
+  expenseTxs.forEach(t => {
+    const cat = db.categories.find(c => c.id === t.category_id)
+    const catName = cat ? cat.name : 'Khác'
+    const catIcon = cat ? cat.icon : '💸'
+
+    // Xử lý hôm nay
+    if (t.date === todayStr) {
+      totalToday += t.amount
+      if (!todayMap[catName]) todayMap[catName] = { name: catName, icon: catIcon, amount: 0 }
+      todayMap[catName].amount += t.amount
+    }
+
+    // Tách lấy năm và tháng từ t.date (giả định định dạng 'YYYY-MM-DD')
+    if (t.date && t.date.length >= 7) {
+      const yearStr = t.date.slice(0, 4)
+      const monthStr = t.date.slice(5, 7)
+
+      if (!yearsMap[yearStr]) {
+        yearsMap[yearStr] = {}
+        for (let i = 1; i <= 12; i++) {
+          const mKey = String(i).padStart(2, '0')
+          yearsMap[yearStr][mKey] = { monthNumber: i, monthKey: mKey, total: 0, categories: {} }
+        }
+      }
+
+      const mData = yearsMap[yearStr][monthStr]
+      if (mData) {
+        mData.total += t.amount
+        if (!mData.categories[catName]) {
+          mData.categories[catName] = { name: catName, icon: catIcon, amount: 0 }
+        }
+        mData.categories[catName].amount += t.amount
+      }
     }
   })
 
-  // 2. Thống kê tổng quan thu / chi tháng này
-  const monthTransactions = db.transactions.filter((t) => t.date.startsWith(currentMonth))
-  const totalIncome = db.monthlyIncome !== undefined 
-  ? db.monthlyIncome 
-  : db.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  // Nếu chưa có dữ liệu năm nào, ít nhất đưa năm hiện tại vào để giao diện không bị trống
+  const currentYearStr = String(new Date().getFullYear())
+    if (!yearsMap[currentYearStr]) {
+    yearsMap[currentYearStr] = {}
+    for (let i = 1; i <= 12; i++) {
+      const mKey = String(i).padStart(2, '0')
+      yearsMap[currentYearStr][mKey] = { monthNumber: i, monthKey: mKey, total: 0, categories: {} }
+    }
+  } 
 
-  // 3. Phân tích chi tiêu theo danh mục (cho Chart)
-  const categorySpendingMap = {}
-  monthTransactions
-    .filter((t) => t.type === 'expense')
-    .forEach((t) => {
-      categorySpendingMap[t.category_id] = (categorySpendingMap[t.category_id] || 0) + t.amount
+  // Format dữ liệu trả về cho chuẩn chỉnh
+  const spendingToday = Object.values(todayMap).map(item => ({
+    ...item,
+    percentage: totalToday > 0 ? Math.round((item.amount / totalToday) * 100) : 0
+  }))
+
+  const structuredYears = Object.keys(yearsMap).sort().reverse().map(yearStr => {
+    const monthsObj = yearsMap[yearStr]
+    // Sắp xếp các tháng chuẩn từ 01 -> 12
+    const sortedMonths = Object.keys(monthsObj).sort().map(mKey => {
+      const mData = monthsObj[mKey]
+      const catsFormatted = Object.values(mData.categories).map(c => ({
+        ...c,
+        percentage: mData.total > 0 ? Math.round((c.amount / mData.total) * 100) : 0
+      }))
+      return {
+        ...mData,
+        categories: catsFormatted
+      }
     })
 
-  const spendingByCategory = Object.entries(categorySpendingMap).map(([catId, amount]) => {
-    const cat = db.categories.find((c) => c.id === Number(catId))
+    // Tính tổng chi tiêu cả năm đó
+    const totalYearExpense = sortedMonths.reduce((sum, m) => sum + m.total, 0)
+
     return {
-      name: cat ? cat.name : 'Khác',
-      icon: cat ? cat.icon : '💸',
-      amount,
-      percentage: totalExpense > 0 ? Math.round((amount / totalExpense) * 100) : 0
+      year: yearStr,
+      totalYear: totalYearExpense,
+      months: sortedMonths
     }
-  }).sort((a, b) => b.amount - a.amount)
+  })
+
+  const totalIncome = db.monthlyIncome !== undefined ? db.monthlyIncome : 0
 
   return wait({
-    budgets: budgetItems,
+    summary: {
+      totalIncome,
+      netSavings: totalIncome - (structuredYears[0]?.totalYear || 0)
+    },
+    budgets: db.budgets.map(b => {
+      const cat = db.categories.find(c => c.id === b.category_id)
+      const spent = expenseTxs.filter(t => t.category_id === b.category_id).reduce((s, t) => s + t.amount, 0)
+      const pct = Math.round((spent / b.limit_amount) * 100)
+      let warning = 'ok'
+      if (pct >= 100) warning = 'exceeded'
+      else if (pct >= 80) warning = 'warning'
+      return { ...b, category: cat, spent, percent_used: pct, warning_level: warning, is_exceeded: spent > b.limit_amount }
+    }),
     jars: db.jars,
-    summary: { totalIncome, totalExpense, netSavings: totalIncome - totalExpense },
-    spendingByCategory
+    spendingToday,
+    structuredYears
   })
 }
 

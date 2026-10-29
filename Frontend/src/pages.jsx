@@ -135,10 +135,43 @@ function JarCard({ j }) {
 // DASHBOARD PAGE
 export function Dashboard() {
   const { data } = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard })
+  
+  const [viewMode, setViewMode] = useState('month') // 'today' | 'month' | 'year'
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'))
 
   if (!data) return <div className="p-8 text-center text-gray-400">Đang tải dữ liệu tài chính...</div>
 
-  const { summary, budgets, jars, spendingByCategory } = data
+  const { summary = {}, budgets = [], jars = [], spendingToday = [], structuredYears = [] } = data
+
+  // Lấy dữ liệu của năm đang chọn
+  const currentYearData = structuredYears.find(y => y.year === selectedYear) || { totalYear: 0, months: [] }
+
+  let currentChartData = []
+  let currentTotalHeading = 0
+
+  if (viewMode === 'today') {
+    currentChartData = spendingToday
+    currentTotalHeading = spendingToday.reduce((s, i) => s + i.amount, 0)
+  } else if (viewMode === 'month') {
+    const foundMonth = currentYearData.months.find(m => m.monthKey === selectedMonth)
+    currentChartData = foundMonth ? foundMonth.categories : []
+    currentTotalHeading = foundMonth ? foundMonth.total : 0
+  } else {
+    // Tổng cả năm: gộp tất cả danh mục trong năm đó lại
+    const yearCatsMap = {}
+    currentYearData.months.forEach(m => {
+      m.categories.forEach(c => {
+        if (!yearCatsMap[c.name]) yearCatsMap[c.name] = { name: c.name, icon: c.icon, amount: 0 }
+        yearCatsMap[c.name].amount += c.amount
+      })
+    })
+    currentChartData = Object.values(yearCatsMap).map(c => ({
+      ...c,
+      percentage: currentYearData.totalYear > 0 ? Math.round((c.amount / currentYearData.totalYear) * 100) : 0
+    }))
+    currentTotalHeading = currentYearData.totalYear
+  }
 
   return (
     <div className="space-y-6">
@@ -149,11 +182,11 @@ export function Dashboard() {
           <div className="text-sm sm:text-lg font-bold text-sage mt-1">+{vnd(summary.totalIncome)}</div>
         </Card>
         <Card className="p-4 text-center">
-          <div className="text-xs font-semibold text-gray-400 uppercase">Chi tiêu tháng</div>
-          <div className="text-sm sm:text-lg font-bold text-alert mt-1">-{vnd(summary.totalExpense)}</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase">Chi tiêu năm {selectedYear}</div>
+          <div className="text-sm sm:text-lg font-bold text-alert mt-1">-{vnd(currentYearData.totalYear)}</div>
         </Card>
         <Card className="p-4 text-center">
-          <div className="text-xs font-semibold text-gray-400 uppercase">Thặng dư (Tiết kiệm)</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase">Thặng dư</div>
           <div className={`text-sm sm:text-lg font-bold mt-1 ${summary.netSavings >= 0 ? 'text-ink' : 'text-alert'}`}>
             {vnd(summary.netSavings)}
           </div>
@@ -162,10 +195,80 @@ export function Dashboard() {
 
       {/* Spending Analytics Chart */}
       <Card>
-        <h3 className="font-bold text-ink mb-4 flex items-center gap-2">
-          <span>📊</span> Phân tích chi tiêu tháng này
-        </h3>
-        <CategorySpendingChart data={spendingByCategory} />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+        <div>
+          <h3 className="font-bold text-ink flex items-center gap-2">
+            <span>📊</span> Phân tích chi tiêu ({viewMode === 'today' ? 'Hôm nay' : viewMode === 'month' ? `Tháng ${Number(selectedMonth)}/${selectedYear}` : `Cả năm ${selectedYear}`})
+          </h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Tổng chi kỳ này: <b className="text-alert">{vnd(currentTotalHeading)}</b>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Chỉ hiện thị bộ chọn Năm khi KHÔNG ở chế độ Hôm nay */}
+          {viewMode !== 'today' && (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-mist dark:bg-gray-800 text-ink dark:text-white text-xs font-bold px-3 py-1.5 rounded-xl outline-none border border-gray-200 dark:border-gray-700"
+            >
+              {structuredYears.map(y => (
+                <option key={y.year} value={y.year}>Năm {y.year}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Các nút chế độ xem: Hôm nay / Theo tháng / Cả năm */}
+          <div className="flex gap-1 p-1 bg-mist dark:bg-gray-800 rounded-xl">
+            <button
+              onClick={() => setViewMode('today')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                viewMode === 'today' ? 'bg-white dark:bg-gray-900 text-ink shadow-sm' : 'text-gray-400 hover:text-ink'
+              }`}
+            >
+              Hôm nay
+            </button>
+            <button
+              onClick={() => setViewMode('month')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                viewMode === 'month' ? 'bg-white dark:bg-gray-900 text-ink shadow-sm' : 'text-gray-400 hover:text-ink'
+              }`}
+            >
+              Theo tháng
+            </button>
+            <button
+              onClick={() => setViewMode('year')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                viewMode === 'year' ? 'bg-white dark:bg-gray-900 text-ink shadow-sm' : 'text-gray-400 hover:text-ink'
+              }`}
+            >
+              Cả năm
+            </button>
+          </div>
+        </div>
+      </div>
+
+        {/* Thanh chọn Tháng chuẩn thứ tự từ Tháng 1 -> Tháng 12 */}
+        {viewMode === 'month' && (
+          <div className="flex gap-1 overflow-x-auto pb-3 mb-3 border-b border-gray-100 dark:border-gray-800">
+            {currentYearData.months.map(m => (
+              <button
+                key={m.monthKey}
+                onClick={() => setSelectedMonth(m.monthKey)}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg whitespace-nowrap transition-all ${
+                  selectedMonth === m.monthKey
+                    ? 'bg-sage text-white'
+                    : 'bg-mist dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                Tháng {m.monthNumber}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <CategorySpendingChart data={currentChartData} />
       </Card>
 
       {/* Daily/Monthly Budgets */}
