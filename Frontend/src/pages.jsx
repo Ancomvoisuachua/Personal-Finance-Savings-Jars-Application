@@ -11,7 +11,8 @@ import {
   moveJar, 
   addBudget,
   addCategory,
-  deleteCategory
+  deleteCategory,
+  setMonthlyIncome
 } from './api'
 
 const vnd = (n) => (n || 0).toLocaleString('vi-VN') + ' đ'
@@ -236,7 +237,6 @@ export function Transactions() {
 }
 
 // BUDGETS PAGE
-// BUDGETS PAGE
 export function Budgets() {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard })
@@ -254,6 +254,16 @@ export function Budgets() {
     onSuccess: () => {
       qc.invalidateQueries()
       setF({ category_id: '', limit_amount: '', period_type: 'daily' })
+    }
+  })
+
+  const [monthlyIncomeInput, setMonthlyIncomeInput] = useState('')
+  const incomeM = useMutation({
+    mutationFn: setMonthlyIncome,
+    onSuccess: () => {
+      qc.invalidateQueries()
+      setMonthlyIncomeInput('')
+      alert('Đã cập nhật thu nhập tháng thành công!')
     }
   })
 
@@ -275,7 +285,7 @@ export function Budgets() {
 
   const expenseCats = cats.filter(c => c.type === 'expense')
 
-  return (
+  return ( 
     <div className="space-y-6">
       {/* Form Tạo / Đặt Hạn Mức */}
       <Card>
@@ -400,6 +410,26 @@ export function Budgets() {
 
         {data ? <BudgetList items={data.budgets} filterPeriod={tab} /> : <p className="text-gray-400">Đang tải...</p>}
       </div>
+      <Card className="mb-6">
+        <h3 className="font-bold text-ink mb-2">💰 Cài đặt thu nhập dự kiến tháng này</h3>
+        <div className="flex gap-2">
+          <input
+            placeholder="Nhập tổng thu nhập (VNĐ)..."
+            inputMode="numeric"
+            value={monthlyIncomeInput ? Number(monthlyIncomeInput).toLocaleString('vi-VN') : ''}
+            onChange={(e) => setMonthlyIncomeInput(e.target.value.replace(/\D/g, ''))}
+            className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm bg-white dark:bg-gray-800 dark:text-white outline-none"
+          />
+          <button
+            disabled={!monthlyIncomeInput}
+            onClick={() => incomeM.mutate(Number(monthlyIncomeInput))}
+            className="bg-sage text-white px-5 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-sage/90 transition-all"
+          >
+            Cập nhật
+          </button>
+        </div>
+      </Card>
+      
     </div>
   )
 }

@@ -116,7 +116,9 @@ export const getDashboard = () => {
 
   // 2. Thống kê tổng quan thu / chi tháng này
   const monthTransactions = db.transactions.filter((t) => t.date.startsWith(currentMonth))
-  const totalIncome = monthTransactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalIncome = db.monthlyIncome !== undefined 
+  ? db.monthlyIncome 
+  : db.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
 
   // 3. Phân tích chi tiêu theo danh mục (cho Chart)
@@ -197,4 +199,11 @@ export const deleteCategory = (id) => {
   db.budgets = db.budgets.filter(b => b.category_id !== id)
   saveDb(db)
   return wait(true)
+}
+
+export const setMonthlyIncome = (amount) => {
+  const db = loadDb()
+  db.monthlyIncome = amount // Lưu vào cấu trúc db
+  saveDb(db)
+  return wait(amount)
 }
