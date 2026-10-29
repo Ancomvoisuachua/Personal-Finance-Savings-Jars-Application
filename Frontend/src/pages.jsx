@@ -9,7 +9,9 @@ import {
   getJars, 
   createJar, 
   moveJar, 
-  addBudget 
+  addBudget,
+  addCategory,
+  deleteCategory
 } from './api'
 
 const vnd = (n) => (n || 0).toLocaleString('vi-VN') + ' đ'
@@ -234,6 +236,7 @@ export function Transactions() {
 }
 
 // BUDGETS PAGE
+// BUDGETS PAGE
 export function Budgets() {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['dashboard'], queryFn: getDashboard })
@@ -241,6 +244,10 @@ export function Budgets() {
   
   const [tab, setTab] = useState('all')
   const [f, setF] = useState({ category_id: '', limit_amount: '', period_type: 'daily' })
+  
+  // State quản lý form thêm danh mục mới
+  const [showAddCat, setShowAddCat] = useState(false)
+  const [newCat, setNewCat] = useState({ name: '', icon: '📌', type: 'expense' })
 
   const addM = useMutation({
     mutationFn: addBudget,
@@ -250,13 +257,94 @@ export function Budgets() {
     }
   })
 
+  // Mutation thêm danh mục
+  const addCatM = useMutation({
+    mutationFn: addCategory,
+    onSuccess: () => {
+      qc.invalidateQueries()
+      setNewCat({ name: '', icon: '📌', type: 'expense' })
+      setShowAddCat(false)
+    }
+  })
+
+  const delCatM = useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: () => qc.invalidateQueries(),
+    onError: (err) => alert(err.message)
+  })
+
   const expenseCats = cats.filter(c => c.type === 'expense')
 
   return (
     <div className="space-y-6">
       {/* Form Tạo / Đặt Hạn Mức */}
       <Card>
-        <h3 className="font-bold text-ink mb-3">Thiết lập hạn mức ngân sách</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-bold text-ink">Thiết lập hạn mức ngân sách</h3>
+          <button 
+            onClick={() => setShowAddCat(!showAddCat)} 
+            className="text-xs font-semibold text-sage hover:underline"
+          >
+            {showAddCat ? '✕ Đóng quản lý danh mục' : '⚙️ Quản lý danh mục'}
+          </button>
+        </div>
+
+        {/* Khu vực Quản lý / Thêm & Xóa danh mục */}
+        {showAddCat && (
+          <div className="mb-4 p-4 bg-mist dark:bg-gray-800 rounded-xl space-y-4 border border-sage/20">
+            <div className="text-xs font-bold text-gray-500 uppercase">Danh sách danh mục hiện tại</div>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1">
+              {cats.map(c => (
+                <div key={c.id} className="flex items-center gap-1.5 bg-white dark:bg-gray-900 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs">
+                  <span>{c.icon}</span>
+                  <span>{c.name}</span>
+                  <span className="text-[10px] opacity-50">({c.type === 'expense' ? 'Chi' : 'Thu'})</span>
+                  <button 
+                    onClick={() => {
+                      if (confirm(`Xóa danh mục "${c.name}"?`)) delCatM.mutate(c.id)
+                    }}
+                    className="ml-1 text-gray-400 hover:text-alert font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-xs font-bold text-gray-500 uppercase pt-2 border-t border-gray-200 dark:border-gray-700">Tạo danh mục mới</div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <input
+                placeholder="Icon (Emoji)"
+                value={newCat.icon}
+                onChange={(e) => setNewCat({ ...newCat, icon: e.target.value })}
+                className="border border-gray-200 dark:border-gray-700 rounded-xl p-2 text-sm bg-white dark:bg-gray-900 outline-none"
+              />
+              <input
+                placeholder="Tên danh mục..."
+                value={newCat.name}
+                onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
+                className="border border-gray-200 dark:border-gray-700 rounded-xl p-2 text-sm bg-white dark:bg-gray-900 outline-none"
+              />
+              <select
+                value={newCat.type}
+                onChange={(e) => setNewCat({ ...newCat, type: e.target.value })}
+                className="border border-gray-200 dark:border-gray-700 rounded-xl p-2 text-sm bg-white dark:bg-gray-900 outline-none"
+              >
+                <option value="expense">Chi tiêu</option>
+                <option value="income">Thu nhập</option>
+              </select>
+              <button
+                disabled={!newCat.name}
+                onClick={() => addCatM.mutate(newCat)}
+                className="bg-sage text-white rounded-xl py-2 font-bold text-xs disabled:opacity-40"
+              >
+                + Thêm danh mục
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Form thiết lập hạn mức */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <select
             value={f.category_id}
@@ -393,3 +481,4 @@ export function Jars() {
     </div>
   )
 }
+

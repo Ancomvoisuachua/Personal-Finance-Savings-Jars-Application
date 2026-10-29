@@ -178,3 +178,23 @@ export const moveJar = ({ id, amount }) => {
   saveDb(db)
   return wait(j)
 }
+
+export const addCategory = (cat) => {
+  const db = loadDb()
+  const newCat = { ...cat, id: db.nid++ }
+  db.categories.push(newCat)
+  saveDb(db)
+  return wait(newCat)
+}
+
+export const deleteCategory = (id) => {
+  const db = loadDb()
+  const hasTx = db.transactions.some(t => t.category_id === id)
+  if (hasTx) {
+    return Promise.reject(new Error('Không thể xóa danh mục đang có giao dịch liên quan!'))
+  }
+  db.categories = db.categories.filter(c => c.id !== id)
+  db.budgets = db.budgets.filter(b => b.category_id !== id)
+  saveDb(db)
+  return wait(true)
+}
