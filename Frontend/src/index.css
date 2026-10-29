@@ -8,14 +8,13 @@
   --color-mist:#f3f5f7; 
 }
 
-/* Biến màu sắc khi bật Dark Mode */
-.dark {
-  --color-ink: #f3f5f7;
-  --color-mist: #111827;
+body {
+  background-color: #f3f5f7; /* Màu sáng mặc định cho Light mode */
+  color: #1f2a44;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-body {
-  background: var(--color-mist);
-  color: var(--color-ink);
-  transition: background-color 0.2s ease, color 0.2s ease;
+.dark body {
+  background-color: #0b0f19 !important; /* Nền tối sâu cho Dark mode */
+  color: #f3f5f7 !important;
 }

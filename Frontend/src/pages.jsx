@@ -23,7 +23,7 @@ const Bar = ({ pct, cls }) => (
 
 // Cập nhật Card tự động đổi màu theo chế độ tối
 const Card = ({ children, className = '' }) => (
-  <div className={`bg-white dark:bg-gray-900 text-ink rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 transition-colors ${className}`}>
+  <div className={`bg-white dark:bg-gray-900 text-ink dark:text-gray-100 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 transition-colors ${className}`}>
     {children}
   </div>
 )
