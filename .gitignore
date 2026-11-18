@@ -1,0 +1,20 @@
+# Local database credentials and environment files
+Backend/src/main/resources/application.properties
+**/.env
+**/.env.*
+!**/.env.example
+
+# Generated frontend and backend files
+Frontend/node_modules/
+Frontend/dist/
+Backend/target/
+
+# Machine-specific IDE files
+**/.idea/
+**/.vscode/
+*.iml
+
+# OS and diagnostic files
+.DS_Store
+Thumbs.db
+*.log
